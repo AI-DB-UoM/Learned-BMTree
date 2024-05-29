@@ -271,3 +271,11 @@ if __name__ == "__main__":
     writer = open(result_save_path + 'result_{}.txt'.format(args.result_appendix), 'w')
 
     experiment_ppo(result_save_path, writer)
+    import shutil
+    # Get the current working directory
+    current_directory = os.getcwd()
+    # Define the destination path with the same filename in the current working directory
+    dest_file = os.path.join(current_directory, "learned_bmtree.txt")
+    # Copy the file
+    shutil.copy(result_save_path + 'best_tree.txt'.format(args.result_appendix), dest_file)
+    print(f"Copied file to: {dest_file}")
