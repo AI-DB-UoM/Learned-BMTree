@@ -8,6 +8,7 @@ import math
 from bmtree.bmtree_env import BMTEnv
 from int2binary import Int2BinaryTransformer
 
+import struct
 import configs
 args = configs.set_config()
 import csv
@@ -31,13 +32,26 @@ max_depth = args.max_depth
 
 
 def load_data(file_path):
-    with open(file_path, 'r') as f:
-        return json.load(f)
+    # with open(file_path, 'r') as f:
+    #     return json.load(f)
+    with open(file_path, newline='', encoding='utf-8') as csvfile:
+        data_reader = csv.reader(csvfile)
+        data = [[float(item) for item in row] for row in data_reader if row]
+    return data
+
+
+def float_to_int_bits(value, shift_length):
+    binary_value = struct.pack('>f', value) 
+    int_value = int.from_bytes(binary_value, 'big')
+    int_20_bits = int_value >> (32 - shift_length) 
+    return int(int_20_bits)
+
 
 def compute_sfc_values(dataset, env):
     sfc_values = []
     for data in dataset:
-        sfc_value = env.tree.output(data)
+        mapped_data = [float_to_int_bits(data[i], bit_length[i]) for i in range(len(data))]
+        sfc_value = env.tree.output(mapped_data)
         sfc_values.append((data, sfc_value)) 
     return sfc_values
 
@@ -52,8 +66,10 @@ def save_to_csv(sorted_sfc_values_with_data, output_file_path):
             writer.writerow(list(data) + [sfc_value])
 
 def main():
-    data_path = 'data/{}.json'.format(args.data)
+    # data_path = 'data/{}.json'.format(args.data)
+    data_path = '../../{}'.format(args.data)
     dataset = load_data(data_path)
+    
     env = BMTEnv(list(dataset), None, bit_length, bmtree_file, binary_transfer, smallest_split_card, max_depth)
 
     sfc_values_with_data = compute_sfc_values(dataset, env)
@@ -63,6 +79,9 @@ def main():
     save_to_csv(sorted_sfc_values_with_data, output_file_path)
 
     print("Sorted data and SFC values saved to:", output_file_path)
+
+
+    # todo deal with queries.
 
 if __name__ == '__main__':
     main()
