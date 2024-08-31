@@ -40,11 +40,23 @@ def load_data(file_path):
     return data
 
 
+# def float_to_int_bits(value, shift_length):
+#     binary_value = struct.pack('>f', value) 
+#     int_value = int.from_bytes(binary_value, 'big')
+#     int_20_bits = int_value >> (32 - shift_length) 
+#     return int(int_20_bits)
+
+
 def float_to_int_bits(value, shift_length):
-    binary_value = struct.pack('>f', value) 
+    if value < 0:
+        value += 180  # dealing with negative numbers of locations
+    binary_value = struct.pack('>f', value)
     int_value = int.from_bytes(binary_value, 'big')
-    int_20_bits = int_value >> (32 - shift_length) 
-    return int(int_20_bits)
+    sign = (int_value >> 31) & 0x1
+    high_bit = 1 if sign == 0 else 0
+    int_temp = int_value >> (33 - shift_length) # here use 33 instead of 32
+    int_32_bits = (high_bit << (shift_length - 1)) | int_temp
+    return int(int_32_bits)
 
 
 def compute_sfc_values(dataset, env):
