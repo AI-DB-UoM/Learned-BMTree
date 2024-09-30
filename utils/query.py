@@ -9,7 +9,7 @@ class Query:
     Area with 16 64 256 1024 4096, height/width ratio with 16 4 1 1/4 1/16
     Query distribution follows Gaussian with rng generated mu. Should be an object
     '''
-    def __init__(self, query, if_point=False):
+    def __init__(self, query, weight=1.0):
         """
         This function initiate the query object, need to mention it's only for two dimensional data
         :param query:
@@ -17,14 +17,15 @@ class Query:
         """
 
         '''When the query is from [x1, x2, y1, y2 stuff]'''
+        self.weight = weight
         if len(query)> 3:
         # if if_point:
             self.min_point = query[0: int(len(query)/2)]
             self.max_point = query[int(len(query)/2) :]
             # self.start_position = [query[0], query[2]]
-            # self.length = query[1] - query[0]
-            # self.width = query[3] - query[2]
-            # self.area = self.length * self.width
+            self.length = query[2] - query[0]
+            self.width = query[3] - query[1]
+            self.area = self.length * self.width
             # self.ratio = self.length / self.width
             return
 
@@ -35,6 +36,7 @@ class Query:
         self.length = self.area / self.width
         self.max_point = [query[2][0] + self.length, query[2][1] + self.width]
         return
+        
 
     def inside(self, data):
         # check if a datapoint inside the query rectangle

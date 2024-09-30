@@ -1,13 +1,29 @@
 # Copyright (c) 2022. This code belongs to Jiangneng Li, Nanyang Technological University.
 
+# Copyright (c) 2022. This code belongs to Jiangneng Li, Nanyang Technological University.
+
 
 '''
 ExperimentEnv class set up the experimental environment, including ordering generate,
 computing scanrange with Query input.
 '''
 
+import time
+
+execution_time = 0
+def cost_timer_decorator(func):
+    def wrapper(*args, **kwargs):
+        global execution_time
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time += end_time - start_time
+        # print(f"'{func.__name__}' function took {execution_time} seconds to run.")
+        return result
+    return wrapper
+
 class ExperimentEnv:
-    def __init__(self, dataset, module=None, pagesize=5, module_name=None, core_num=20):
+    def __init__(self, dataset, module=None, pagesize=5, module_name=None, core_num=20, cost_level=0):
         # initialize dataset #
         self.dataset = list([])
         for datapoint in dataset:
@@ -24,6 +40,10 @@ class ExperimentEnv:
         self.core_num = core_num
 
         self.value_page = []
+
+        self.cost_level = cost_level
+
+        self.query_volume = 0
         return
 
     '''Change the mapping module'''
@@ -32,6 +52,44 @@ class ExperimentEnv:
         self.module = module
         self.module_name = module_name
 
+
+    @cost_timer_decorator
+    def _order_generate(self, compute_range=-1):
+        # use module generate ordering, partition/mark #
+        sort_list = []
+        '''if not mention, regenerate whole order, otherwise generate order of the range accordingly.'''
+        if compute_range == -1:
+            for i in range(len(self.dataset)):
+                value = self.module.output(self.dataset[i]['data'])
+                self.dataset[i]['value'] = value
+
+            self.dataset.sort(key=lambda x: x['value'])
+        else:
+            for i in range(compute_range[0], compute_range[1] + 1):
+                value = self.module.output(self.dataset[i]['data'])
+                self.dataset[i]['value'] = value
+            self.dataset[compute_range[0]: compute_range[1]] = sorted(self.dataset[compute_range[0]: compute_range[1]],
+                                                                      key=lambda x: x['value'])
+
+        
+
+        # free and reallocate
+        del self.value_page[:]
+        del self.value_page
+        self.value_page = []
+
+        current_page = 0
+        self.value_page.append([current_page, self.dataset[0]['value']])
+        for i in range(len(self.dataset)):
+            self.dataset[i]['order'] = i
+            self.dataset[i]['page'] = int(i / self.pagesize)
+
+            '''Now we store the vlaue-block mapping information'''
+            if current_page < self.dataset[i]['page']:
+                current_page = self.dataset[i]['page']
+                self.value_page.append([current_page, self.dataset[i]['value']])
+        return
+    
     def order_generate(self, compute_range=-1):
         # use module generate ordering, partition/mark #
         sort_list = []
@@ -124,14 +182,37 @@ class ExperimentEnv:
             # print(start_scan, end_scan)
         return scan_range
 
+    @cost_timer_decorator
     def fast_compute_scan_range(self, queries):
-        scan_range = 0
+        """
+        cost_level is a flag to indicate which cost function to use.
+        when cost_level = 0, we use the original scan of BMTree range as cost
+        when cost_level = 1, BMTree with data extractor
+        when cost_level = 2, BMTree with query adaptor
+        when cost_level = 3, BMTree with query estimator
+        """
+        if self.cost_level == 0:
+            scan_range = 0
 
-        for i in range(len(queries)):
-            scan_range += self.run_query_fast(queries[i])
+            for i in range(len(queries)):
+                scan_range += self.run_query_fast(queries[i])
 
-        scan_range /= len(queries)
-        return scan_range
+            scan_range /= len(queries)
+            return scan_range
+        
+        if self.cost_level == 1:
+            for query in queries:
+                self.query_volume += query.area * query.weight
+        elif self.cost_level == 2:
+            return self.module.output_all_queries_local(queries, True)
+        else:
+            scan_range = 0
+
+            for i in range(len(queries)):
+                scan_range += self.run_query_fast(queries[i])
+
+            scan_range /= len(queries)
+            return scan_range
 
 
 if __name__ == '__main__':

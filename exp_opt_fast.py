@@ -5,6 +5,8 @@ from datetime import datetime
 dateTimeObj = datetime.now()
 import time
 import os
+import sys
+import pandas as pd
 import random
 
 import torch
@@ -20,6 +22,15 @@ from int2binary import Int2BinaryTransformer
 from utils.query import Query
 
 import configs
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '../../'))  # Adjust path to the root
+sys.path.append(project_root)
+
+from contributions.estimator import Estimator
+from constants import TEMP_OUTPUT_FILE_PATH
+
+
 args = configs.set_config()
 
 
@@ -48,7 +59,7 @@ action_dim = len(bit_length)
 method = args.method
 
 
-def experiment_ppo(result_save_path, file_writer, data_path = 'data/', query_path = 'query/'):
+def experiment_ppo(result_save_path, file_writer):
     """
     This function start and end the experiment
     :param result_save_path:
@@ -59,19 +70,60 @@ def experiment_ppo(result_save_path, file_writer, data_path = 'data/', query_pat
     global new_performance
 
     '''load data and have dataset:full data, sampled_data: data for training'''
-    with open(data_path + args.data + '.json', 'r') as f:
-        dataset = json.load(f)
+
+    dataset_df = pd.read_csv(args.data_file)
+
+    # with open(data_path + args.data + '.json', 'r') as f:
+    #     dataset = json.load(f)
+
+    dataset = dataset_df.values.tolist()
     random.shuffle(dataset)
+    for i, data_point in enumerate(dataset):
+        dataset[i] = [int(value * data_space[dim]) for dim, value in enumerate(data_point)]
     data_card = len(dataset)
+
     # sampled_data = dataset[:int(args.data_sample_rate * data_card)]
     sampled_data = dataset[:args.data_sample_points]
 
-    with open(query_path + args.query + '.json', 'r') as f:
-        queryset = json.load(f)
+    if not os.path.exists(args.query_workload):
+        print(f"Error: Query workload file {args.query_workload} does not exist.")
+        sys.exit(1)
+    
+    with open(args.query_workload, 'r') as f:
+        json_data = json.load(f)
+
+    query_data = json_data.get('query', {})
+    k = json_data.get('k', 25)
+
+    # Extract the tag and query paths (range, knn, point)
+    query_paths = {
+        'range': "../../" + query_data.get('range', None),
+        'knn': "../../" + query_data.get('knn', None),
+        'point': "../../" + query_data.get('point', None)
+    }
+  
+    estimator = Estimator(args.data_file, query_paths, bit_length, k)
+    all_query_set = estimator.windows
+    queryset = []
+    for query in all_query_set:
+        if args.cost_level == 0:
+            if query.tag == 'knn' or query.tag == 'point':
+                continue
+            queryset.append(Query(query.dimension_low + query.dimension_high))
+        elif args.cost_level == 1:
+            if query.tag == 'knn' or query.tag == 'point':
+                continue
+            queryset.append(Query(query.dimension_low + query.dimension_high, query.weight))
+        elif args.cost_level == 2:
+            queryset.append(Query(query.dimension_low + query.dimension_high, query.weight))
+        else:
+            print("Wrong cost level.")
+            sys.exit(1)
 
     '''set up query workload: training set and testing set'''
-    queryset = [Query(query) for query in queryset]
+    # queryset = [Query(query) for query in queryset]
     query_card = len(queryset)
+
     # random.shuffle(queryset)
     # training_queryset = queryset[: int(args.query_split_rate * query_card)]
     testing_queryset = queryset[int(args.query_split_rate * query_card):]
@@ -83,7 +135,6 @@ def experiment_ppo(result_save_path, file_writer, data_path = 'data/', query_pat
     '''Set up baselines and finish result generating'''
 
     agent_save_path = result_save_path + 'model.pt'
-
 
     
     '''Set up the environment for rl agent'''
@@ -235,22 +286,24 @@ def experiment_ppo(result_save_path, file_writer, data_path = 'data/', query_pat
 
         return
 
-
 if __name__ == "__main__":
     data_path, query_path, result_path = 'data/', 'query/', 'fast_result/'
 
     if not os.path.exists(result_path):
         os.mkdir(result_path)
 
-    result_save_path = result_path + "{}_{}/".format(args.data, args.query)
+    data_file_name = os.path.basename(args.data_file).split('.')[0]  # Extracts 'data_10000_2_uniform_1'
+    query_file_name = os.path.basename(args.query_workload).split('.')[0]  # Extracts 'exp01'
 
-    if not os.path.exists(result_save_path):
-        os.mkdir(result_save_path)
+    # Construct a valid result save path using these names
+    result_save_path = f"fast_result/{data_file_name}_{query_file_name}/"
+
+    # Create the directory if it does not exist
+    os.makedirs(result_save_path, exist_ok=True)
 
     result_save_path = result_save_path + "{}/".format(args.method)
 
-    if not os.path.exists(result_save_path):
-        os.mkdir(result_save_path)
+    os.makedirs(result_save_path, exist_ok=True)
 
 
     result_save_path = result_save_path + "{}_{}_{}_{}_{}".format( args.data_sample_points,
@@ -273,9 +326,11 @@ if __name__ == "__main__":
     experiment_ppo(result_save_path, writer)
     import shutil
     # Get the current working directory
-    current_directory = os.getcwd()
+    # current_directory = "../../data/learned_BMC/bmtree/"
+    current_directory = f"../../{TEMP_OUTPUT_FILE_PATH}"
+    os.makedirs(current_directory, exist_ok=True)
     # Define the destination path with the same filename in the current working directory
     dest_file = os.path.join(current_directory, "learned_bmtree.txt")
     # Copy the file
     shutil.copy(result_save_path + 'best_tree.txt'.format(args.result_appendix), dest_file)
-    print(f"Copied file to: {dest_file}")
+    # print(f"Copied file to: {dest_file}")

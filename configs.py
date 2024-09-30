@@ -9,12 +9,14 @@ def set_config():
     :return:
     """
     parser = argparse.ArgumentParser()
+    parser.add_argument('--cost_level', choices=[0, 1, 2], help='define cost level: 0:Naive, 1: Naive with data extractor, 2:with query adaptor and estimator ', type=int, default=0)
+
     parser.add_argument('--device', help='put into which device', type=int, default=0)
     parser.add_argument('--result_appendix', help='add the string at the end of the file', default='')
 
     parser.add_argument('--train_episode', help='tree generating epochs', type=int, default=300)
-    parser.add_argument('--data', help='which dataset to use', default='uniform_1000000')
-    parser.add_argument('--query', help='which query workload to use, (uniform, normal, skew, design)',
+    parser.add_argument('--data_file', help='which dataset to use', default='uniform_1000000')
+    parser.add_argument('--query_workload', help='which query workload to use, (uniform, normal, skew, design)',
                         default='skew_1000_dim2')
 
 
@@ -65,6 +67,7 @@ def set_config():
     parser.add_argument('--warm_cache_repeat', help='knn query query neighbor number', type=int, default=3)
     parser.add_argument('--db_password', help='the password of the dbsystem', default='1234')
 
+    
 
 
     args = parser.parse_args()
