@@ -191,9 +191,10 @@ class ExperimentEnv:
         when cost_level = 2, BMTree with query adaptor
         when cost_level = 3, BMTree with query estimator
         """
-        if self.cost_level == 0:
-            scan_range = 0
 
+        scan_range = 0
+
+        if self.cost_level == 0:
             for i in range(len(queries)):
                 scan_range += self.run_query_fast(queries[i])
 
@@ -201,8 +202,9 @@ class ExperimentEnv:
             return scan_range
         
         if self.cost_level == 1:
-            for query in queries:
-                self.query_volume += query.area * query.weight
+            for i in range(len(queries)):
+                scan_range += self.run_query_fast(queries[i]) * queries[i].weight
+            return scan_range
         elif self.cost_level == 2:
             return self.module.output_all_queries_local(queries, True)
         else:
