@@ -98,9 +98,9 @@ def experiment_ppo(result_save_path, file_writer, data_path = 'data/', query_pat
 
     '''set up training reward env & final performance reward env'''
     training_reward_env = ExperimentEnv(sampled_data, env.tree, module_name='bmtree', pagesize=5,
-                                        core_num=args.core_num)
+                                        core_num=args.core_num, cost_method=args.cost_method)
     performance_reward_env = ExperimentEnv(dataset, env.tree, module_name='bmtree', pagesize=page_size,
-                                           core_num=args.core_num)
+                                           core_num=args.core_num, cost_method=args.cost_method)
 
     # performance_reward_env.change_module(env.tree, module_name='bmtree')
     performance_reward_env.order_generate()

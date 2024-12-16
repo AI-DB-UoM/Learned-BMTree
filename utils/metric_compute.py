@@ -7,7 +7,7 @@ computing scanrange with Query input.
 '''
 
 class ExperimentEnv:
-    def __init__(self, dataset, module=None, pagesize=5, module_name=None, core_num=20):
+    def __init__(self, dataset, module=None, pagesize=5, module_name=None, core_num=20, cost_method=0):
         # initialize dataset #
         self.dataset = list([])
         for datapoint in dataset:
@@ -22,6 +22,8 @@ class ExperimentEnv:
         self.pagesize = pagesize  # data points per page
 
         self.core_num = core_num
+
+        self.cost_method = cost_method
 
         self.value_page = []
         return
@@ -125,13 +127,19 @@ class ExperimentEnv:
         return scan_range
 
     def fast_compute_scan_range(self, queries):
-        scan_range = 0
 
-        for i in range(len(queries)):
-            scan_range += self.run_query_fast(queries[i])
+        if self.cost_method == 0:
+            scan_range = 0
 
-        scan_range /= len(queries)
-        return scan_range
+            for i in range(len(queries)):
+                scan_range += self.run_query_fast(queries[i])
+
+            scan_range /= len(queries)
+            return scan_range
+        if self.cost_method == 1:
+            return self.module.output_all_queries_local(queries) / len(queries)
+
+        return 0
 
 
 if __name__ == '__main__':

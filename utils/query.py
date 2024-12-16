@@ -22,9 +22,9 @@ class Query:
             self.min_point = query[0: int(len(query)/2)]
             self.max_point = query[int(len(query)/2) :]
             # self.start_position = [query[0], query[2]]
-            # self.length = query[1] - query[0]
-            # self.width = query[3] - query[2]
-            # self.area = self.length * self.width
+            self.length = query[1] - query[0]
+            self.width = query[3] - query[2]
+            self.area = self.length * self.width
             # self.ratio = self.length / self.width
             return
 

@@ -64,6 +64,7 @@ def set_config():
     parser.add_argument('--knn_number', help='knn query query neighbor number', type=int, default=25)
     parser.add_argument('--warm_cache_repeat', help='knn query query neighbor number', type=int, default=3)
     parser.add_argument('--db_password', help='the password of the dbsystem', default='1234')
+    parser.add_argument('--cost_method', help='the cost method that is used to calculate reward', type=int, default=0)
 
 
 
